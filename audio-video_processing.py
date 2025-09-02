@@ -507,7 +507,7 @@ def hoa_broadband_power_mvdr(Xc_ftc, Yc, g_per_ch, f, map_fps, tau_s=0.25,
     # Initialize SCMs
     R = np.zeros((F, C, C), dtype=np.complex128)
     eyeC = np.eye(C, dtype=np.complex128)
-    A = Yc.copy()  # (K,C)
+    A = np.conj(Yc)      # <-- use conjugated steering
     if use_maxre_taper:
         A = A * g_per_ch[None, :]
     t_iter = range(T)
@@ -655,7 +655,7 @@ def das_broadband_power(
                 for b in idx:
                     fb = np.float32(f[b])
                     # steering for this single frequency: (Kc, M) complex64
-                    S_b = np.exp(-1j * two_pi * fb * tau_chunk, dtype=np.complex64)
+                    S_b = np.exp(+1j * two_pi * fb * tau_chunk, dtype=np.complex64)
                     # weighted mic spectrum: (M,) complex64
                     x_b = (wqv_c * X_fm[b, :].astype(np.complex64, copy=False))
                     # y = S_b @ x_b -> (Kc,)
@@ -849,11 +849,12 @@ def build_acoustic_overlays(
 
 
     # --- HOA MAX-rE broadband energy (optionally PHAT)
-
+    '''
     tqdm.write("[stage] MAX-rE (HOA) broadband power")
     E_maxre = hoa_broadband_power_maxre(
         Xhoa_cplx, W_maxre, f, f_lo=hoa_f_lo, f_hi=hoa_f_hi, phat= False #do_phat
     )  # (T,K)
+    '''
     '''
     # --- HOA MVDR broadband energy
     tqdm.write("[stage] MVDR (HOA) broadband power")
@@ -862,8 +863,8 @@ def build_acoustic_overlays(
         f_lo=hoa_f_lo, f_hi=hoa_f_hi, lam=mvdr_lambda, use_maxre_taper=mvdr_use_maxre
     )  # (T,K)
     '''
+
     # --- RAW 64: DAS / SRP-PHAT broadband energy
-    '''
     tau_km = steering_delays(mic_pos, dirs)  # (K, M)
     E_das = das_broadband_power(
         Xraw_ftm, f, tau_km, wq=wq,
@@ -872,7 +873,7 @@ def build_acoustic_overlays(
         n_bands=16,  # try 12–24
         chunk_K=4096,  # 2048 or 4096
     )
-    '''
+
     # --- Overlay videos
     # Decide names
     base = out_prefix if out_prefix is not None else os.path.splitext(video_file)[0]
@@ -880,12 +881,13 @@ def build_acoustic_overlays(
     OUT2 = f"{base}_acoustic_overlay_mvdr.mp4"
     OUT3 = f"{base}_acoustic_overlay_das.mp4"
 
-
+    '''
     tqdm.write("[stage] Overlay: MAX-rE")
     overlay_acoustic_video(
         E_maxre, video_file, OUT1, (grid_h, grid_w),
         colormap="inferno", alpha=0.55, sigma_px=2.0, map_fps=map_fps,time_offset_s=stft_t0
     )
+    '''
     '''
     tqdm.write("[stage] Overlay: MVDR")
     overlay_acoustic_video(
@@ -893,13 +895,13 @@ def build_acoustic_overlays(
         colormap="inferno", alpha=0.55, sigma_px=2.0, map_fps=map_fps,time_offset_s=stft_t0
     )
     '''
-    '''
+
     tqdm.write("[stage] Overlay: DAS / SRP-PHAT")
     overlay_acoustic_video(
         E_das, video_file, OUT3, (grid_h, grid_w),
         colormap="inferno", alpha=0.55, sigma_px=1.0, map_fps=map_fps,time_offset_s=stft_t0
     )
-    '''
+
     return {"maxre": OUT1, "mvdr": OUT2, "das": OUT3}
 
 # =========================
@@ -910,14 +912,14 @@ def demo_overlay():
 
     raw_file = "/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_raw-3.wav" #"/home/agjaci-iit.local/em64_processing/ES3_20250805_111732_raw 1.wav" #"/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_raw-3.wav"
     ambisonic_file = "/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_hoa-3.wav" #"/home/agjaci-iit.local/em64_processing/ES3_20250805_111732_hoa.wav" #"/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_hoa-3.wav"
-    video_file = "/media/agjaci/Extreme SSD/anechoic_recordings/camera/2025-08-13 15-15-20.mkv" #"/home/agjaci-iit.local/em64_processing/2025-08-05 15-07-09.mkv" #"/media/agjaci/Extreme SSD/anechoic_recordings/camera/2025-08-13 15-15-20.mkv" #2025-08-13 15-24-22
+    video_file = "/media/agjaci/Extreme SSD/anechoic_recordings/camera/2025-08-13 15-15-20.mkv" #"/home/agjaci-iit.local/em64_processing/2025-08-05 15-07-09.mkv" #"/media/agjaci/Extreme SSD/anechoic_recordings/camera/2025-08-13 15-15-20.mkv" #2025-08-13 15-24-22 2025-08-13 15-38-26
 
     out_hoa = os.path.splitext(ambisonic_file)[0] + "_aligned.wav"
     out_raw = os.path.splitext(raw_file)[0] + "_aligned.wav"
     out_vid = os.path.splitext(video_file)[0] + "_aligned.mp4"
     geom_file = "em64_geom.csv"
 
-    '''
+
     info = align_hoa_to_video(
             ambisonic_wav_path=ambisonic_file,
             raw_wav_path=raw_file,
@@ -929,7 +931,7 @@ def demo_overlay():
             hoa_onset_channel=0,
             pre_roll_s=0.5,
             search_window_s=None)
-
+    '''
     info = align_hoa_to_video(
         ambisonic_wav_path=ambisonic_file,
         video_path=video_file,
@@ -956,7 +958,7 @@ def demo_overlay():
         input_norm="SN3D",
         fov_h_deg=90.0,
         fov_v_deg=50.0,
-        map_w=48,
+        map_w= 48, #48,
         map_h=None,
         map_fps=12,
         hoa_f_lo=300.0,
