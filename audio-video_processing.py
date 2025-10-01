@@ -772,6 +772,8 @@ def overlay_acoustic_video(energy_stack, video_path, output_path, grid_shape, co
     vid.close()
     out.close()
 
+
+
 # =========================
 # Main driver (builds 3 overlays)
 # =========================
