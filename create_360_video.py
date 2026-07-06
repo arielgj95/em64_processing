@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import argparse
 import os, logging, numpy as np
 from moviepy.editor import VideoFileClip, AudioFileClip, clips_array
 from scipy.signal import butter, filtfilt, find_peaks
@@ -8,13 +9,10 @@ from scipy.signal import butter, filtfilt, find_peaks
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
 log = logging.getLogger("align_clap_stack")
 
-# --- EDIT THESE ---
-ACOUSTIC_MP4 = r"/home/agjaci-iit.local/em64_processing/acoustic_360_equirect_pointcloud_new.mp4"
-RICOH_MP4    = r"/media/agjaci/Extreme SSD/ICO_Production_Limerick_Data_Backup/360_camera1/DCIM/100RICOH/R0010015_winter_T3_st.MP4"
-OUT_MP4      = r"./stacked_aligned_clap_pointcloud.mp4"
+DEFAULT_OUT_MP4 = "stacked_aligned_clap_pointcloud.mp4"
 
 # Optional: if a video has no/poor audio, supply a separate audio file just for detection
-ACOUSTIC_AUDIO_OVERRIDE = None   # e.g. r"/path/to/acoustic_audio.wav"
+ACOUSTIC_AUDIO_OVERRIDE = None
 RICOH_AUDIO_OVERRIDE    = None   # usually keep None
 
 TARGET_WIDTH = 2048
@@ -202,17 +200,23 @@ def safe_duration(clip):
         d = getattr(clip.audio, "duration", None)
     return d
 
-def main():
-    if not os.path.exists(ACOUSTIC_MP4): raise FileNotFoundError(ACOUSTIC_MP4)
-    if not os.path.exists(RICOH_MP4):    raise FileNotFoundError(RICOH_MP4)
+def main(
+    acoustic_mp4,
+    ricoh_mp4,
+    out_mp4=DEFAULT_OUT_MP4,
+    acoustic_audio_override=ACOUSTIC_AUDIO_OVERRIDE,
+    ricoh_audio_override=RICOH_AUDIO_OVERRIDE,
+):
+    if not os.path.exists(acoustic_mp4): raise FileNotFoundError(acoustic_mp4)
+    if not os.path.exists(ricoh_mp4):    raise FileNotFoundError(ricoh_mp4)
 
     log.info("Loading videos…")
-    top0 = VideoFileClip(ACOUSTIC_MP4)   # acoustic pano
-    bot0 = VideoFileClip(RICOH_MP4)      # Ricoh pano (has the audio we will keep)
+    top0 = VideoFileClip(acoustic_mp4)   # acoustic pano
+    bot0 = VideoFileClip(ricoh_mp4)      # Ricoh pano (has the audio we will keep)
 
     # Get audio sources to detect the clap
-    top_audio = AudioFileClip(ACOUSTIC_AUDIO_OVERRIDE) if ACOUSTIC_AUDIO_OVERRIDE else top0.audio
-    bot_audio = AudioFileClip(RICOH_AUDIO_OVERRIDE) if RICOH_AUDIO_OVERRIDE else bot0.audio
+    top_audio = AudioFileClip(acoustic_audio_override) if acoustic_audio_override else top0.audio
+    bot_audio = AudioFileClip(ricoh_audio_override) if ricoh_audio_override else bot0.audio
     if top_audio is None or bot_audio is None:
         raise RuntimeError("Both videos (or overrides) must have audio to detect the clap.")
 
@@ -265,9 +269,9 @@ def main():
     if aclip is not None:
         stacked = stacked.set_audio(aclip)
 
-    log.info(f"Writing {OUT_MP4}")
+    log.info(f"Writing {out_mp4}")
     stacked.write_videofile(
-        OUT_MP4,
+        out_mp4,
         codec="libx264", audio_codec="aac",
         fps=TARGET_FPS, preset=PRESET,
         ffmpeg_params=["-crf", CRF, "-pix_fmt", "yuv420p"],
@@ -276,7 +280,22 @@ def main():
     log.info("Done.")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Stack an acoustic 360 video with a Ricoh 360 video after clap alignment."
+    )
+    parser.add_argument("--acoustic-mp4", required=True, help="Rendered acoustic 360 video.")
+    parser.add_argument("--ricoh-mp4", required=True, help="Reference Ricoh 360 video.")
+    parser.add_argument("--out-mp4", default=DEFAULT_OUT_MP4, help="Output stacked video.")
+    parser.add_argument("--acoustic-audio-override", default=None, help="Optional audio file for acoustic clap detection.")
+    parser.add_argument("--ricoh-audio-override", default=None, help="Optional audio file for Ricoh clap detection.")
+    args = parser.parse_args()
+    main(
+        acoustic_mp4=args.acoustic_mp4,
+        ricoh_mp4=args.ricoh_mp4,
+        out_mp4=args.out_mp4,
+        acoustic_audio_override=args.acoustic_audio_override,
+        ricoh_audio_override=args.ricoh_audio_override,
+    )
 
 
 
@@ -288,8 +307,8 @@ import json, subprocess, sys, shutil
 from pathlib import Path
 
 # --- defaults so you can just press Run ---
-INP  = Path("/media/agjaci/Extreme SSD/ICO_Production_Limerick_Data_Backup/360_camera1/DCIM/100RICOH/R0010015_winter_T3.MP4")
-OUT  = Path("/media/agjaci/Extreme SSD/ICO_Production_Limerick_Data_Backup/360_camera1/DCIM/100RICOH/R0010015_winter_T3_full360.mp4")
+INP  = Path("input_dual_fisheye.mp4")
+OUT  = Path("output_equirect.mp4")
 FOV  = 190       # try 185–200 if the seam shows a gap/overlap
 CRF  = 18
 PRESET = "medium"

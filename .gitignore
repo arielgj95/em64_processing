@@ -1,0 +1,44 @@
+# IDE/project metadata
+.idea/
+
+# Python cache and environments
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Local recordings, render outputs, and generated media
+*.wav
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.ply
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.npy
+*.npz
+*.sofa
+!AKO536081622_1_processed.sofa
+RenderOption_*.json
+before/
+
+# Temporary video/audio files
+temp_video_only.mp4
+temp_audio.wav
+temp-audio.m4a
+
+# Local scratch files
+something.py
+
+# OS/editor noise
+.DS_Store
+*.swp
+*.swo
+*.log

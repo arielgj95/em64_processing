@@ -28,7 +28,7 @@ Controls (step viewer):
 Author: you + ChatGPT
 """
 
-import os, sys, time, math, threading, tempfile, copy, logging, traceback, random
+import argparse, os, sys, time, math, threading, tempfile, copy, logging, traceback, random
 import numpy as np
 import soundfile as sf
 from tqdm import tqdm
@@ -2047,17 +2047,37 @@ def build_correct_transformation():
     # This gives det = +1 (proper rotation)
     return R
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Build a 3D acoustic map over a point cloud from EM64 recordings."
+    )
+    parser.add_argument("--pointcloud", required=True, help="Point cloud file used as the room geometry.")
+    parser.add_argument("--raw64", default=None, help="Raw 64-channel Eigenmike WAV recording for DAS.")
+    parser.add_argument("--hoa", default=None, help="HOA WAV recording for MAXRE or MVDR.")
+    parser.add_argument("--geom", default="em64_geom.csv", help="EM64 geometry CSV.")
+    parser.add_argument("--beam", default="maxre", choices=("das", "maxre", "mvdr"),
+                        help="Beamforming method.")
+    parser.add_argument("--output", default="acoustic_360_equirect_pointcloud_new.mp4",
+                        help="Output acoustic equirectangular point-cloud video.")
+    args = parser.parse_args()
+
+    if args.beam == "das" and not args.raw64:
+        parser.error("--raw64 is required when --beam=das")
+    if args.beam in ("maxre", "mvdr") and not args.hoa:
+        parser.error("--hoa is required when --beam is maxre or mvdr")
+    return args
+
+
 # ----------------------------
-# Example usage (edit paths)
+# Example usage
 # ----------------------------
 if __name__ == "__main__":
-    # ---- EDIT THESE ----
-    POINTCLOUD = r"/home/agjaci-iit.local/em64_processing/limerick_pc.ply"  # your .ply
-    RAW64 = r"/media/agjaci/Extreme SSD/ICO_Production_Limerick_Data_Backup/ICO_day1/Atmos-Movement-Winter_T3_Eigenmike_raw.wav"   # 64ch (for DAS) or None
-    HOA = r"/media/agjaci/Extreme SSD/ICO_Production_Limerick_Data_Backup/ICO_day1/Atmos-Movement-Winter_T3_Eigenmike_hoa.wav"     # 49ch ACN/SN3D/N3D 6th order (for MAX-rE/MVDR) or None
-    GEOM = "em64_geom.csv"                # EM64 geometry (for DAS)
-    BEAM = "maxre"                        # "das" | "maxre" | "mvdr"
-    # --------------------
+    args = parse_args()
+    POINTCLOUD = args.pointcloud
+    RAW64 = args.raw64
+    HOA = args.hoa
+    GEOM = args.geom
+    BEAM = args.beam
 
     MIC_POS     = (0, 2, 0)
     mic_R_room = build_correct_transformation()
@@ -2117,7 +2137,7 @@ if __name__ == "__main__":
             use_hoa_binaural=True, order=6, azL=-30.0, azR=+30.0, el=0.0
         )
         '''
-        OUT_EQ_PC = "acoustic_360_equirect_pointcloud_new.mp4"
+        OUT_EQ_PC = args.output
         export_360_pointcloud_equirect(pack, OUT_EQ_PC, width=2048, height=1024, fps_out=12,
                                        cmap_name="inferno", per_frame_norm=False, color_floor=0.03)
     except Exception as e:

@@ -5,6 +5,7 @@ Processes 4th-order ambisonic recordings into directional beam visualization
 with binaural audio output using HRTF.
 """
 
+import argparse
 import os
 import time
 import zipfile
@@ -649,6 +650,7 @@ class AudioVideoProcessor:
                  hoa_band=None,               # e.g. (300.,8000.) if you want HOA-banded maps
                  mvdr_alpha=1e-3,
                  grid_size=220,
+                 sofa_file='AKO536081622_1_processed.sofa',
                  ):
         self.ambisonic_file = ambisonic_file
         self.raw_file = raw_file
@@ -658,10 +660,11 @@ class AudioVideoProcessor:
         self.das_band = das_band
         self.hoa_band = hoa_band
         self.mvdr_alpha = mvdr_alpha
+        self.sofa_file = sofa_file
 
         self.ambisonic_proc = AmbisonicProcessor(order=6, sample_rate=48000)
         self.hrtf_proc = HRTFProcessor(sample_rate=48000, hoa_order=6)
-        self.hrtf_proc.load_sofa_hrtf("/home/agjaci-iit.local/em64_analysis/hrtf_data/HRIRs/AKO536081622_1_processed.sofa")
+        self.hrtf_proc.load_sofa_hrtf(self.sofa_file)
         self.viz_engine = VisualizationEngine(fps=30)
 
         self.sample_rate = 48000
@@ -957,14 +960,23 @@ def plot_directivity_on_sphere(beam_dirs, beam_powers):
 # Entrypoint
 # =========================
 def main():
-    #ambisonic_file = "/media/agjaci/Extreme SSD/em64_rec/ES3_20250522_101457_hoa-4.wav"
-    #raw_file = "/media/agjaci/Extreme SSD/em64_rec/ES3_20250522_101457_raw-4.wav"
-    #geom_file = "/media/agjaci/Extreme SSD/em64_rec/em64_geom.csv"
-    ambisonic_file = "/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_hoa-7_aligned.wav"
-    raw_file = "/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_raw-7_aligned.wav"
-    geom_file = "/home/agjaci-iit.local/em64_analysis/em64_geom.csv"
+    parser = argparse.ArgumentParser(
+        description="Render an Eigenmike acoustic map video from HOA and raw recordings."
+    )
+    parser.add_argument("--ambisonic-file", required=True, help="HOA WAV recording.")
+    parser.add_argument("--raw-file", required=True, help="Raw 64-channel Eigenmike WAV recording.")
+    parser.add_argument("--geom-file", default="em64_geom.csv", help="EM64 geometry CSV.")
+    parser.add_argument("--sofa-file", default="AKO536081622_1_processed.sofa", help="SOFA HRTF file.")
+    parser.add_argument("--map-mode", default="DAS", choices=("DAS", "MAXRE", "MVDR"),
+                        help="Acoustic map algorithm.")
+    parser.add_argument("--grid-size", type=int, default=220, help="Angular scan grid size.")
+    args = parser.parse_args()
 
-    for fp in [ambisonic_file, raw_file, geom_file]:
+    ambisonic_file = args.ambisonic_file
+    raw_file = args.raw_file
+    geom_file = args.geom_file
+
+    for fp in [ambisonic_file, raw_file, geom_file, args.sofa_file]:
         if not os.path.exists(fp):
             print(f"Error: File not found: {fp}")
             return
@@ -974,11 +986,12 @@ def main():
         processor = AudioVideoProcessor(
             ambisonic_file, raw_file, geom_file,
             input_norm='SN3D',
-            map_mode='MAXRE',          # change to 'DAS', 'MAXRE' or 'MVDR'
+            map_mode=args.map_mode,
             das_band=(300., 8000.),
             hoa_band=None,           # e.g. (300., 8000.) to band-limit MAXRE quadratic map
             mvdr_alpha=1e-3,
-            grid_size=64
+            grid_size=args.grid_size,
+            sofa_file=args.sofa_file,
         )
         processor.run()  # filename auto-tagged by map_mode
     except Exception as e:

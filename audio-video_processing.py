@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import numpy as np
 import soundfile as sf
@@ -170,8 +171,7 @@ def align_hoa_to_video(
 def plot_alignment_before_after(
     ambisonic_wav_path,
     video_path,
-    hoa_onset_channel=0,/home/agjaci-iit.local/miniconda3/envs/em64_analysis/bin/python /home/agjaci-iit.local/em64_processing/align_data.py
-
+    hoa_onset_channel=0,
     pre_roll_s=0.5,
     window_s=0.5,
     search_window_s=None,
@@ -910,16 +910,11 @@ def build_acoustic_overlays(
 # Demo driver
 # =========================
 
-def demo_overlay():
-
-    raw_file = "/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_raw-3.wav" #"/home/agjaci-iit.local/em64_processing/ES3_20250805_111732_raw 1.wav" #"/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_raw-3.wav"
-    ambisonic_file = "/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_hoa-3.wav" #"/home/agjaci-iit.local/em64_processing/ES3_20250805_111732_hoa.wav" #"/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_hoa-3.wav"
-    video_file = "/media/agjaci/Extreme SSD/anechoic_recordings/camera/2025-08-13 15-15-20.mkv" #"/home/agjaci-iit.local/em64_processing/2025-08-05 15-07-09.mkv" #"/media/agjaci/Extreme SSD/anechoic_recordings/camera/2025-08-13 15-15-20.mkv" #2025-08-13 15-24-22 2025-08-13 15-38-26
+def demo_overlay(raw_file, ambisonic_file, video_file, geom_file="em64_geom.csv"):
 
     out_hoa = os.path.splitext(ambisonic_file)[0] + "_aligned.wav"
     out_raw = os.path.splitext(raw_file)[0] + "_aligned.wav"
     out_vid = os.path.splitext(video_file)[0] + "_aligned.mp4"
-    geom_file = "em64_geom.csv"
 
 
     info = align_hoa_to_video(
@@ -945,9 +940,9 @@ def demo_overlay():
     )
     '''
 
-    RAW_ALIGNED = out_raw #"/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_raw-3.wav"
-    HOA_ALIGNED = out_hoa #"/media/agjaci/Extreme SSD/anechoic_recordings/em64/ES3_20250807_170126_hoa-3.wav"  # /home/agjaci-iit.local/em64_processing/ES3_20250805_111732_hoa_aligned.wav"
-    VID_ALIGNED = out_vid #"/media/agjaci/Extreme SSD/camera/em64/2025-08-13 15-15-20.mkv"  #/home/agjaci-iit.local/em64_processing/2025-08-05 15-07-09_aligned.mp4"
+    RAW_ALIGNED = out_raw
+    HOA_ALIGNED = out_hoa
+    VID_ALIGNED = out_vid
 
     # compute overplays
     build_acoustic_overlays(
@@ -1025,7 +1020,20 @@ def demo_overlay():
     '''
 
 def main():
-    demo_overlay()
+    parser = argparse.ArgumentParser(
+        description="Align EM64 audio to camera video and render acoustic overlays."
+    )
+    parser.add_argument("--raw-file", required=True, help="Raw 64-channel Eigenmike WAV recording.")
+    parser.add_argument("--ambisonic-file", required=True, help="HOA WAV recording.")
+    parser.add_argument("--video-file", required=True, help="Camera video used for alignment and overlay.")
+    parser.add_argument("--geom-file", default="em64_geom.csv", help="EM64 geometry CSV.")
+    args = parser.parse_args()
+
+    for fp in [args.raw_file, args.ambisonic_file, args.video_file, args.geom_file]:
+        if not os.path.exists(fp):
+            raise FileNotFoundError(fp)
+
+    demo_overlay(args.raw_file, args.ambisonic_file, args.video_file, args.geom_file)
 
 
 if __name__ == "__main__":
